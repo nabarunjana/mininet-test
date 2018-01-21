@@ -21,13 +21,14 @@ from random import *
 
 numNetworks = 2
 hostsPerSwitch = 8		#8
-selectRandomHosts =1
-differentSubnets = 0
-interval = 10
-duration = 100
-CLIon = 0
-mesh = 1
+selectRandomHosts =1	# true = 1
+differentSubnets = 0	# false = 0
+interval = 10			# seconds
+duration = 240			# seconds
+CLIon = 0				# 0 = Off (No CLI)
+mesh = 1				# 1 = Mesh network
 switchLevels = 5		#5
+throughput = 4000		# KB
 test = 'iperf3'
 dateCmd = "date +%H:%M:%S"
 class MyTopo(Topo):
@@ -89,7 +90,11 @@ def performIperf(net,i):
 	#-------- removed net.iperf( (h1, h4) )  ---- replacesd with host.cmd()
 	print "Performing Iperf test between", h1, h1.IP(), "(c) and ", h2, h2.IP(), "(s)"
 	h2.cmd('%s -s &' %(test)) #running iperf server in the background (&)
-	h1.cmd('%s -c %s -b %sKB -i %s -t %s | sed -e "s/^/$(%s) /" >> %s-%s.%s.dat 2>> err.dat &&' %(test,h2.IP(),int(h2.name[1:])*int(h1.name[1:]),interval,duration,dateCmd,h1,h2,test)) #running iperf client in background until complete (&&)
+	global throughput		# Since value being changed
+	if throughput == 0:
+		throughput = int(h2.name[1:])*int(h1.name[1:])
+	h1.cmd('%s -c %s -b %sKB -i %s -t %s | sed -e "s/^/$(%s) /" >> %s-%s.%s.dat 2>> err.dat &&' %(test,h2.IP(),throughput,interval,duration,dateCmd,h1,h2,test)) #running iperf client in background until complete (&&)
+	h1.cmd('ping %s -c 1>> %s-ping-%s.txt' %(h2.IP(),h1,h2))
 	#-------- temp tried -- &&' %(test,h2.IP(),duration,"date +**%H:%M:%S"))#
 	
 def simpleTest():
@@ -129,7 +134,7 @@ def simpleTest():
 	threads = []
 	t={}
 	
-	net.get('h11').cmd('while sleep %s; do %s;ping -c 1 10.0.0.16|grep avg ; done >> h1ping2.txt 2>> err.txt &' %(interval/2,dateCmd))
+	#net.get('h11').cmd('while sleep %s; do %s;ping -c 1 10.0.0.16|grep avg ; done >> h1ping2.txt 2>> err.txt &' %(interval/2,dateCmd))
 	
 	hpairs = len(net.hosts)/2
 	if n > hpairs:
@@ -145,6 +150,7 @@ def simpleTest():
 		threads.append(t[i])
 	
 		time.sleep(interval)
+		t[i].daemon = True
 		t[i].start()
 	#----- removed time.sleep(20) ------ replaced with join()
 	
@@ -154,8 +160,8 @@ def simpleTest():
 		#"""
 	net.stop()
 	
-	for i in range(int(n)):
-		t[i].notify() 
+	#for i in range(int(n)):
+		#t[i].notify() 
 	stopTime = time.time()
 	print(stopTime-startTime)
 	print os.system('%s >> log.txt; echo %s >> log.txt' %(dateCmd,stopTime-startTime))		#dummy command to print  seconds of the clock
