@@ -4,7 +4,7 @@
 	File name: nIperfSessions.py
 	Author: Nabarun Jana
 	Date created: 9/12/2017
-	Date last modified: 11/05/2017
+	Date last modified: 01/21/2018
 	Python Version: 2.7
 '''
 
@@ -16,7 +16,7 @@ from mininet.node import RemoteController,OVSKernelSwitch
 from mininet.link import TCLink
 from mininet.util import irange,dumpNodeConnections
 from mininet.log import setLogLevel
-import sys,threading,time,os
+import sys,threading,time,os,subprocess,signal
 from random import *
 
 numNetworks = 2
@@ -24,11 +24,11 @@ hostsPerSwitch = 8		#8
 selectRandomHosts =1	# true = 1
 differentSubnets = 0	# false = 0
 interval = 10			# seconds
-duration = 240			# seconds
+duration = 120			# seconds
 CLIon = 0				# 0 = Off (No CLI)
 mesh = 1				# 1 = Mesh network
 switchLevels = 5		#5
-throughput = 4000		# KB
+throughput = 4			# KB
 test = 'iperf3'
 dateCmd = "date +%H:%M:%S"
 class MyTopo(Topo):
@@ -93,8 +93,9 @@ def performIperf(net,i):
 	global throughput		# Since value being changed
 	if throughput == 0:
 		throughput = int(h2.name[1:])*int(h1.name[1:])
+	h1.cmd('ping %s -i %s -w %s | sed -e "s/^/$(%s) /" >> %s-%s.ping.txt 2>> err.dat &' %(h2.IP(),interval,duration+interval/2,dateCmd,h1,h2))
 	h1.cmd('%s -c %s -b %sKB -i %s -t %s | sed -e "s/^/$(%s) /" >> %s-%s.%s.dat 2>> err.dat &&' %(test,h2.IP(),throughput,interval,duration,dateCmd,h1,h2,test)) #running iperf client in background until complete (&&)
-	h1.cmd('ping %s -c 1>> %s-ping-%s.txt' %(h2.IP(),h1,h2))
+	h2.sendInt()
 	#-------- temp tried -- &&' %(test,h2.IP(),duration,"date +**%H:%M:%S"))#
 	
 def simpleTest():
@@ -105,12 +106,12 @@ def simpleTest():
 	net.start()
 	
 	#--- Monitoring 
-	os.system('ip link show > ports.txt')
-	os.system('while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost hrStorageUsed.1; snmpwalk -v 1 -c public -O e localhost hrProcessorLoad; done>> DevStats.txt 2>> err.txt &' %(interval,dateCmd))
+	os.popen('ip link show > ports.txt')
+	snmpDevProc = subprocess.Popen('while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost hrStorageUsed.1; snmpwalk -v 1 -c public -O e localhost hrProcessorLoad; done>> DevStats.txt 2>> err.txt &' %(interval,dateCmd), shell=True)
 	
 	c0= net.get('c0')
 	c0.cmd('snmpd -Lsd -Lf /dev/null -u snmp -I -smux -p /var/run/snmpd.pid -c /etc/snmp/snmpd.conf')
-	c0.cmd('while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost hrStorageUsed.1; snmpwalk -v 1 -c public -O e localhost hrProcessorLoad; done>> ControllerStats.txt 2>> err.txt &' %(interval,dateCmd))
+	snmpConProc = c0.cmd('while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost hrStorageUsed.1; snmpwalk -v 1 -c public -O e localhost hrProcessorLoad; done>> ControllerStats.txt 2>> err.txt &' %(interval,dateCmd))
 	
 	for r in irange(1,numNetworks):
 		router = net.get('r%s0' %(r))
@@ -158,7 +159,13 @@ def simpleTest():
 	for i in range(int(n)):
 		t[i].join() 
 		#"""
+	c0.sendInt()
+	for r in irange(1,numNetworks):
+		router = net.get('r%s0' %(r))
+		router.sendInt()
 	net.stop()
+	snmpDevProc.kill()
+	#os.kill(int(snmpConProc.split()[1]), signal.CTRL_C_EVENT)
 	
 	#for i in range(int(n)):
 		#t[i].notify() 
