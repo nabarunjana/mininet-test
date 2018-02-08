@@ -24,7 +24,7 @@ hostsPerSwitch = 8		#8
 selectRandomHosts =1	# true = 1
 differentSubnets = 0	# false = 0
 interval = 10			# seconds
-duration = 120			# seconds
+duration = 40			# seconds
 CLIon = 0				# 0 = Off (No CLI)
 mesh = 1				# 1 = Mesh network
 switchLevels = 5		#5
@@ -93,9 +93,11 @@ def performIperf(net,i):
 	global throughput		# Since value being changed
 	if throughput == 0:
 		throughput = int(h2.name[1:])*int(h1.name[1:])
-	h1.cmd('ping %s -i %s -w %s | sed -e "s/^/$(%s) /" >> %s-%s.ping.txt 2>> err.dat &' %(h2.IP(),interval,duration+interval/2,dateCmd,h1,h2))
-	h1.cmd('%s -c %s -b %sKB -i %s -t %s | sed -e "s/^/$(%s) /" >> %s-%s.%s.dat 2>> err.dat &&' %(test,h2.IP(),throughput,interval,duration,dateCmd,h1,h2,test)) #running iperf client in background until complete (&&)
+	h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' %(h2.IP(),interval/2,duration+interval/2,"%H:%M:%S",h1,h2))
+	h1.cmd('%s -c %s -b %sKB -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.%s.dat 2>> err.dat &&' %(test,h2.IP(),throughput,interval/2,duration,"%H:%M:%S",h1,h2,test)) #running iperf client in background until complete (&&)
 	h2.sendInt()
+	hosts.append(h1)
+	hosts.append(h2)
 	#-------- temp tried -- &&' %(test,h2.IP(),duration,"date +**%H:%M:%S"))#
 	
 def simpleTest():
@@ -137,13 +139,14 @@ def simpleTest():
 	
 	#net.get('h11').cmd('while sleep %s; do %s;ping -c 1 10.0.0.16|grep avg ; done >> h1ping2.txt 2>> err.txt &' %(interval/2,dateCmd))
 	
+	''' ---- Removed 02-01-2018 ---- Invalid after hosts.append()
 	hpairs = len(net.hosts)/2
 	if n > hpairs:
 		print "Number of IPerf tests exceeds host pairs. Reducings tests from %s to %s"  %(n,hpairs)
 		n = hpairs
 	else:
 		print "Number of IPerf tests %s" %n
-		
+	'''	
 		
 	#Creating n threads, one for each iperf session
 	for i in range(int(n)):
