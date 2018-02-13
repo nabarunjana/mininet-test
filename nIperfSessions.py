@@ -20,15 +20,15 @@ import sys,threading,time,os,subprocess,signal
 from random import *
 
 numNetworks = 2
-hostsPerSwitch = 8		#8
-selectRandomHosts =1	# true = 1
-differentSubnets = 0	# false = 0
-interval = 10			# seconds
-duration = 40			# seconds
-CLIon = 0				# 0 = Off (No CLI)
-mesh = 1				# 1 = Mesh network
-switchLevels = 5		#5
-throughput = 4			# KB
+hostsPerSwitch = 8					#8
+selectRandomHosts =1				# true = 1
+differentSubnets = 0				# false = 0
+interval = 10						# seconds
+duration = int(sys.argv[2])			# 20 seconds
+CLIon = 0							# 0 = Off (No CLI)
+mesh = 1							# 1 = Mesh network
+switchLevels = 5					#5
+throughput = int(sys.argv[3])		# 8 KB
 test = 'iperf3'
 dateCmd = "date +%H:%M:%S"
 class MyTopo(Topo):
@@ -44,7 +44,7 @@ class MyTopo(Topo):
 		super(MyTopo, self).__init__(**opts)
 		
 		self.k = k
-		bandwidth=10 #MBits/sec
+		bandwidth=100 #MBits/sec
 		#------ removed lastSwitch = None
 		lastRouter = None
 		routers = []
