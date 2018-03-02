@@ -4,7 +4,7 @@
 	File name: nIperfSessions.py
 	Author: Nabarun Jana
 	Date created: 9/12/2017
-	Date last modified: 01/21/2018
+	Date last modified: 02/28/2018
 	Python Version: 2.7
 '''
 
@@ -16,7 +16,7 @@ from mininet.node import RemoteController,OVSKernelSwitch
 from mininet.link import TCLink
 from mininet.util import irange,dumpNodeConnections
 from mininet.log import setLogLevel
-import sys,threading,time,os,subprocess,signal
+import sys,threading,time,os,subprocess,signal,re, numpy
 from random import *
 
 numNetworks = 2
@@ -28,8 +28,8 @@ duration = int(sys.argv[2])			# 20 seconds
 CLIon = 0							# 0 = Off (No CLI)
 mesh = 1							# 1 = Mesh network
 switchLevels = 5					#5
-throughput = int(sys.argv[3])		# 8 KB
-test = 'iperf3'
+throughput = int(sys.argv[3])		# 8 Mbps
+test = 'iperf'
 dateCmd = "date +%H:%M:%S"
 class MyTopo(Topo):
 	"Star topology of k switches, with 4 host per switch."
@@ -92,10 +92,59 @@ def performIperf(net,i):
 	h2.cmd('%s -s &' %(test)) #running iperf server in the background (&)
 	global throughput		# Since value being changed
 	if throughput == 0:
-		throughput = int(h2.name[1:])*int(h1.name[1:])
-	h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' %(h2.IP(),interval/2,duration+interval/2,"%H:%M:%S",h1,h2))
-	h1.cmd('%s -c %s -b %sKB -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.%s.dat 2>> err.dat &&' %(test,h2.IP(),throughput,interval/2,duration,"%H:%M:%S",h1,h2,test)) #running iperf client in background until complete (&&)
+		throughput = int(h2.name[1:])*int(h1.name[1:])/10000
+	
+	#coefficient=float(h1.cmd('cat coefficients-%s-%s.txt|tail -1' %(sys.argv[2],sys.argv[3])).rstrip())
+	#coeff=h1.cmd('cat coefficients-%s-%s.txt|tail -1' %(sys.argv[2],sys.argv[3]))
+	coeffile=('coefficients-%s-%s.txt' %(sys.argv[2],sys.argv[3]))
+	coeffile = open(coeffile,'r')
+	lines=coeffile.readlines()
+	coeff = lines[len(lines)-1]
+	coefficient = float(re.sub("[^0-9.]", "", coeff))
+	fcoeff=0
+	if random() < coefficient:
+		filename = '%s-%s.%s.dat' % (h1, h2, test)
+		h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' %(h2.IP(),interval/2,duration,"%H:%M:%S",h1,h2))
+		h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat &&' %(test,h2.IP(),throughput,interval/2,duration,"%H:%M:%S",filename)) #running iperf client in background until complete (&&)
+		bwfile = open(filename, 'r')
+		bwline = bwfile.readlines()
+		line = bwline[len(bwline) - 1]
+		i=0
+		if len(re.split('\s+', line))==11:
+			i=1
+		bw = float(re.split('\s+', line)[7+i])
+		bwUnit = re.split('\s+', line)[8+i]
+		multiplier = 1
+		if bwUnit[0] == 'K':
+			multiplier = 1000
+		elif bwUnit[0] == 'M':
+			multiplier = 1000000
+		elif bwUnit[0] == 'G':
+			multiplier = 1000000000
+		delfile = ('%s-%s.ping.txt' %(h1, h2))
+		delfile = open(delfile,'r')
+		delline= delfile.readlines()
+		line = delline[len(delline) - 1]
+		print line
+		delay = float(re.split('/+', line)[4])
+		coeffile=('coefficients-%s-%s.txt' %(sys.argv[2],sys.argv[3]))
+		coeffile = open(coeffile, 'r')
+		lines = coeffile.readlines()
+		coeff = lines[len(lines) - 1]
+		coefficient = float(re.sub("[^0-9.]", "", coeff))
+		if ((bw * multiplier > 1000000) & (delay < 100)):
+			fcoeff = 1.1 * coefficient
+			if fcoeff > 1: fcoeff = 1
+		else:
+			fcoeff = 0.9 * coefficient
+		#print bw
+
+	else:
+		fcoeff=1*coefficient
+	
+	h1.cmd('echo %s >>coefficients-%s-%s.txt' %(fcoeff,sys.argv[2],sys.argv[3]))
 	h2.sendInt()
+		
 	hosts.append(h1)
 	hosts.append(h2)
 	#-------- temp tried -- &&' %(test,h2.IP(),duration,"date +**%H:%M:%S"))#
@@ -127,7 +176,7 @@ def simpleTest():
 	if CLIon == 1:
 		CLI( net )
 		
-		
+	os.system('echo \"1\">>coefficients-%s-%s.txt' %(sys.argv[2],sys.argv[3]))	
 	startTime = time.time()	
 	print "Testing network connectivity"
 	#------- removed net.pingAll()   ----- replaced with net.staticArp()
