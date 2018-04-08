@@ -38,6 +38,7 @@ slaDel = 200
 slaBW = 1000000
 bandwidth = 1000  # MBits/sec
 session=sys.argv[2]+"x"+sys.argv[3]
+controllerIP='18.222.38.189'
 
 class MyTopo(Topo):
      "Star topology of k switches, with 4 host per switch."
@@ -56,13 +57,13 @@ class MyTopo(Topo):
           lastRouter = None
           routers = []
           for r in irange(1, numNetworks):
-               centralSwitch = self.addSwitch('s%s0' % (r))
+               centralSwitch = self.addSwitch('s%s0' % (r), cls=OVSKernelSwitch)
                if differentSubnets == 0:
-                    centralRouter = self.addSwitch('r%s0' % (r), ip='10.0.0.%s' % (255 - r))
+                    centralRouter = self.addSwitch('r%s0' % (r), cls=OVSKernelSwitch, ip='10.0.0.%s' % (255 - r))
                else:
-                    centralRouter = self.addSwitch('r%s0' % (r), ip='10.0.%s.254' % r)
+                    centralRouter = self.addSwitch('r%s0' % (r), cls=OVSKernelSwitch, ip='10.0.%s.254' % r)
                for i in irange(0, k - 1):
-                    switch = self.addSwitch('s%s%s' % (r, i + 1))
+                    switch = self.addSwitch('s%s%s' % (r, i + 1) , cls=OVSKernelSwitch)
                     self.addLink(switch, centralSwitch, bw=bandwidth)
                     for j in range(1, (hostsPerSwitch + 1)):
                          if differentSubnets == 0:
@@ -182,9 +183,7 @@ def getCoeff():
      p.load('dbcon.properties')
      conn = pymssql.connect(server=p.getProperty("host"), user=p.getProperty("user"),password=p.getProperty("password"), database=p.getProperty("database"))
      cursor = conn.cursor()
-     cursor.execute(
-          "SELECT avg(coeff) FROM coefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
-          slaBW, slaDel, bandwidth, session))
+     cursor.execute( "SELECT avg(coeff) FROM coefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (slaBW, slaDel, bandwidth, session))
      row = str(cursor.fetchone()).strip('(,)')
      if row=="None":
           row = "1"
@@ -194,7 +193,7 @@ def getCoeff():
 def simpleTest():
      "Create and test a simple network"
      topo = MyTopo(k=switchLevels)
-     net = Mininet(topo, link=TCLink, autoSetMacs=True,autoStaticArp=False,controller=lambda name: RemoteController(name, defaultIP='127.0.0.1', port=6633))
+     net = Mininet(topo, link=TCLink, switch=OVSKernelSwitch ,autoSetMacs=True,autoStaticArp=False, controller=lambda name: RemoteController(name, ip=controllerIP, port=6633 ))
      net.start()
 
      # --- Monitoring
@@ -218,7 +217,7 @@ def simpleTest():
           CLI(net)
 
      #os.system('echo \"1\">>coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]))
-     fcoeff=getCoeff()
+     fcoeff=1 #getCoeff()
      appendFile('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), fcoeff)
      startTime = time.time()
      # ------- removed net.pingAll()   ----- replaced with net.staticArp()
