@@ -27,6 +27,7 @@ interval = 10  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 mesh = 1  # 1 = Mesh network
+secondRun=1
 switchLevels = 5  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skipcoeff = 0
@@ -125,41 +126,42 @@ class DataTraffic:
           # coefficient=float(h1.cmd('cat coefficients-%s-%s.txt|tail -1' %(sys.argv[2],sys.argv[3])).rstrip())
           # coeff=h1.cmd('cat coefficients-%s-%s.txt|tail -1' %(sys.argv[2],sys.argv[3]))
           coefficient = self.readCoeff()
-          fcoeff = 0
+          fcoeff = 1 * coefficient
           if (skipcoeff == 1) | (random() < coefficient):
                bwfile = '%s-%s.%s.dat' % (h1, h2, test)
                h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' % (h2.IP(), interval / 2, duration, "%H:%M:%S", h1, h2))
                h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat' % (test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",bwfile))  # running iperf client in background until complete (&&)
-               bwfile = open(bwfile, 'r')
-               bwline = bwfile.readlines()
-               coefficient = self.readCoeff()
-               if len(bwline) == 0:
-                    global dropped
-                    dropped = +1
-                    fcoeff = 1 * coefficient
-               else:
-                    line = bwline[len(bwline) - 1]
-                    pad = 0
-                    if len(re.split('\s+', line)) == 11:
-                         pad = 1
-                    bw = float(re.split('\s+', line)[7 + pad])
-                    bwUnit = re.split('\s+', line)[8 + pad]
-                    mx={'G':1000000000,'M':1000000,'K':1000}
-                    multiplier = mx.get(bwUnit[0],1)
-                    delfile = ('%s-%s.ping.txt' % (h1, h2))
-                    delline = self.readLastLine(delfile)
-                    delay = float(re.split('/+', delline)[4])
-                    if ((bw * multiplier > slaBW) & (delay < slaDel)):
-                         fcoeff = 1.1 * coefficient
-                         if fcoeff > 1: fcoeff = 1
+               if secondRun==0:
+                    bwfile = open(bwfile, 'r')
+                    bwline = bwfile.readlines()
+                    coefficient = self.readCoeff()
+                    if len(bwline) == 0:
+                         global dropped
+                         dropped = +1
+                         fcoeff = 1 * coefficient
                     else:
-                         fcoeff = 0.9 * coefficient
+                         line = bwline[len(bwline) - 1]
+                         pad = 0
+                         if len(re.split('\s+', line)) == 11:
+                              pad = 1
+                         bw = float(re.split('\s+', line)[7 + pad])
+                         bwUnit = re.split('\s+', line)[8 + pad]
+                         mx = {'G': 1000000000, 'M': 1000000, 'K': 1000}
+                         multiplier = mx.get(bwUnit[0], 1)
+                         delfile = ('%s-%s.ping.txt' % (h1, h2))
+                         delline = self.readLastLine(delfile)
+                         delay = float(re.split('/+', delline)[4])
+                         if ((bw * multiplier > slaBW) & (delay < slaDel)):
+                              fcoeff = 1.1 * coefficient
+                              if fcoeff > 1: fcoeff = 1
+                         else:
+                              fcoeff = 0.9 * coefficient
           # print bw
 
           else:
                global blocked
                blocked = blocked + 1
-               fcoeff = 1 * coefficient
+
 
           #h1.cmd('echo %s >>coefficients-%s-%s.txt' % (fcoeff, sys.argv[2], sys.argv[3]))
           appendFile('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]),fcoeff)
@@ -183,7 +185,7 @@ def getCoeff():
      p.load('dbcon.properties')
      conn = pymssql.connect(server=p.getProperty("host"), user=p.getProperty("user"),password=p.getProperty("password"), database=p.getProperty("database"))
      cursor = conn.cursor()
-     cursor.execute( "SELECT avg(coeff) FROM coefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (slaBW, slaDel, bandwidth, session))
+     cursor.execute( "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like '%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % ('%200%',slaBW, slaDel, bandwidth, session))
      row = str(cursor.fetchone()).strip('(,)')
      if row=="None":
           row = "1"
