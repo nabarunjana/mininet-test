@@ -16,7 +16,7 @@ from mininet.node import RemoteController, OVSKernelSwitch
 from mininet.link import TCLink
 from mininet.util import irange, dumpNodeConnections
 from mininet.log import setLogLevel
-import sys, threading, time, os, subprocess, signal, re, numpy, Properties, pymssql
+import sys, threading, time, os, subprocess, signal, re, numpy, Properties, pyodbc
 from random import *
 
 numNetworks = 2
@@ -39,7 +39,7 @@ slaDel = 200
 slaBW = 1000000
 bandwidth = 1000  # MBits/sec
 session=sys.argv[2]+"x"+sys.argv[3]
-controllerIP='18.222.38.189'
+controllerIP='18.218.10.207'
 
 class MyTopo(Topo):
      "Star topology of k switches, with 4 host per switch."
@@ -183,7 +183,7 @@ def appendFile(filename,val):
 def getCoeff():
      p = Properties.Properties()
      p.load('dbcon.properties')
-     conn = pymssql.connect(server=p.getProperty("host"), user=p.getProperty("user"),password=p.getProperty("password"), database=p.getProperty("database"))
+     conn = pyodbc.connect(DRIVER='{ODBC Driver 13 for SQL Server}',server=p.getProperty("host"), user=p.getProperty("user"),password=p.getProperty("password"), database=p.getProperty("database"))
      cursor = conn.cursor()
      cursor.execute( "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like '%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % ('%200%',slaBW, slaDel, bandwidth, session))
      row = str(cursor.fetchone()).strip('(,)')
@@ -219,7 +219,8 @@ def simpleTest():
           CLI(net)
 
      #os.system('echo \"1\">>coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]))
-     fcoeff=1 #getCoeff()
+     if secondRun== 0: fcoeff=1
+     else: fcoeff= getCoeff()
      appendFile('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), fcoeff)
      startTime = time.time()
      # ------- removed net.pingAll()   ----- replaced with net.staticArp()
