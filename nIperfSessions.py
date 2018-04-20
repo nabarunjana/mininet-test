@@ -27,7 +27,7 @@ interval = 10  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 mesh = 1  # 1 = Mesh network
-secondRun=1
+secondRun=0
 switchLevels = 5  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skipcoeff = 0
@@ -39,7 +39,7 @@ slaDel = 200
 slaBW = 1000000
 bandwidth = 1000  # MBits/sec
 session=sys.argv[2]+"x"+sys.argv[3]
-controllerIP='18.218.10.207'
+controllerIP='13.58.66.222'
 
 class MyTopo(Topo):
      "Star topology of k switches, with 4 host per switch."
@@ -129,6 +129,8 @@ class DataTraffic:
           fcoeff = 1 * coefficient
           if (skipcoeff == 1) | (random() < coefficient):
                bwfile = '%s-%s.%s.dat' % (h1, h2, test)
+               h1.cmd('ping %s &' %h2.IP())
+               time.sleep(2)
                h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' % (h2.IP(), interval / 2, duration, "%H:%M:%S", h1, h2))
                h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat' % (test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",bwfile))  # running iperf client in background until complete (&&)
                if secondRun==0:
