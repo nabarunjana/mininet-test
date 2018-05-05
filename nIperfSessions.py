@@ -235,22 +235,22 @@ def simpleTest():
     os.popen('ip link show > ports.txt')
     # '''
     snmpDevProc = subprocess.Popen(
-        'while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost hrStorageUsed.1; snmpwalk -v 1 -c public -O e '
-        'localhost hrProcessorLoad; done>> DevStats.txt 2>> err.txt &' % (
+        'while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost 1.3.6.1.2.1.25.2.3.1.6.1; snmpwalk -v 1 -c public -O e '
+        'localhost 1.3.6.1.2.1.25.3.3.1.2; done>> DevStats.txt 2>> err.txt &' % (
             interval, dateCmd), shell=True)
 
     c0 = net.get('c0')
     c0.cmd('snmpd -Lsd -Lf /dev/null -u snmp -I -smux -p /var/run/snmpd.pid -c /etc/snmp/snmpd.conf')
     snmpConProc = c0.cmd(
-        'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s hrStorageUsed.1; snmpwalk -v 1 -c public -O e '
-        'localhost hrProcessorLoad; done>> ControllerStats.txt 2>> err.txt &' % (
-            interval, dateCmd, controllerIP))
+        'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.25.2.3.1.6.1; snmpwalk -v 1 -c public -O e '
+        '%s 1.3.6.1.2.1.25.3.3.1.2; done>> ControllerStats.txt 2>> err.txt &' % (
+            interval, dateCmd, controllerIP,controllerIP))
 
     for r in irange(1, numNetworks):
         router = net.get('r%s0' % r)
         router.cmd('snmpd -Lsd -Lf /dev/null -u snmp -I -smux -p /var/run/snmpd.pid -c /etc/snmp/snmpd.conf')
         router.cmd(
-            'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s ifOutOctets; done>> Router%sIfOutStats.txt 2>> '
+            'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.2.2.1.16; done>> Router%sIfOutStats.txt 2>> '
             'err.txt &' % (
                 interval, dateCmd, router.IP(), r))  # .1.3.6.1.2.1.2.2.1.16
     # '''
