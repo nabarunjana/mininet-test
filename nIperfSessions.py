@@ -27,10 +27,10 @@ interval = 10  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 mesh = 1  # 1 = Mesh network
-secondRun = 0
+secondRun = 1
 switchLevels = 5  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
-skipcoeff = 1
+skipcoeff = 0
 blocked = 0
 dropped = 0
 test = 'iperf'
@@ -216,7 +216,7 @@ def getCoeff():
     cursor = conn.cursor()
     cursor.execute(
         "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
-        "'%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
+        "'SW%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
             '%200%', slaBW, slaDel, bandwidth, session))
     row = str(cursor.fetchone()).strip('(,)')
     if row == "None":
