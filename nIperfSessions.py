@@ -218,9 +218,10 @@ def getCoeff():
         "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
         "'SW%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
             '%200%', slaBW, slaDel, bandwidth, session))
-    row = str(cursor.fetchone()).strip('(,)')
+    row = str(cursor.fetchone()).strip('(, )')
     if row == "None":
         row = "1"
+    print(row)
     return float(re.sub("[^0-9.]", "", row))
 
 
