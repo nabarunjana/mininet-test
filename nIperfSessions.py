@@ -23,7 +23,7 @@ numNetworks = 2
 hostsPerSwitch = 8  # 8
 selectRandomHosts = 2  # true = 1
 differentSubnets = 0  # false = 0
-interval = 10  # seconds
+interval = 2  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 mesh = 1  # 1 = Mesh network
@@ -39,7 +39,7 @@ slaDel = 200
 slaBW = 1000000
 bandwidth = 64  # MBits/sec
 session = sys.argv[2] + "x" + sys.argv[3]
-controllerIP = '18.216.236.4'
+controllerIP = '127.0.0.1'
 
 
 class MyTopo(Topo):
