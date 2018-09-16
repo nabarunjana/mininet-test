@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-./initiateSession.ksh 8 8
-./initiateSession.ksh 8 16
-./initiateSession.ksh 16 16
-toUse=`date +%d%m%y` #"'2SW10sL64C100x1'" #
+./initiateSession.ksh 16 32
+./initiateSession.ksh 16 32
+./initiateSession.ksh 16 32
+./initiateSession.ksh 16 32
+toUse="'FixedPairs100x1'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
 skip=`grep 'skipcoeff' nIperfSessions.py |head -1 | cut -d '=' -f2`
 if [ $skip == 1 ]; then slaDel=0; slaBW=0; else
 slaDel=` grep 'slaDel' nIperfSessions.py |head -1 | cut -d '=' -f2`
