@@ -20,17 +20,17 @@ import sys, threading, time, os, subprocess, signal, re, numpy, Properties, pyod
 from random import *
 
 numNetworks = 2
-hostPerSw = 1  # 8
+hostPerSw = 16  # 8
 selectRandomHosts = 0  # true = 1
 differentSubnets = 0  # false = 0
 interval = 2  # seconds
 duration = int(sys.argv[2])  # 20 seconds
-CLIon = 1  # 0 = Off (No CLI)
+CLIon = 0  # 0 = Off (No CLI)
 test_with_data=1
 monitoring=1
 mesh = 1  # 1 = Mesh network
 secondRun = 0
-switchLevels = 2  # 5
+switchLevels = 10  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skipcoeff = 0
 blocked = 0
@@ -68,10 +68,9 @@ class MyTopo(Topo):
                 self.addLink(switch, central_switch, bw=bandwidth)
                 for host_num in irange(1, hostPerSw):
                     dev_num = hostPerSw * sw_num + host_num
-                    ip_add = "10.0.%s.%s/24" % ((netNum - 1), dev_num)
-                    if differentSubnets == 0: mask='255.255.0.0'
-                    else: mask='255.255.255.0'
-                    host = self.addHost('h%s%s' %(netNum,dev_num), ip=ip_add, Mask=mask, defaultRoute="via "+rtr_ip_add)
+                    ip_add = "10.0.%s.%s" % ((netNum - 1), dev_num)
+                    ip_add += "/16" if differentSubnets == 0 else "/24"
+                    host = self.addHost('h%s%s' %(netNum,dev_num), ip=ip_add, defaultRoute="via "+rtr_ip_add)
                     self.addLink(host, switch, bw=bandwidth)
 
             self.addLink(central_switch, central_router, bw=bandwidth)
@@ -140,13 +139,10 @@ class DataTraffic:
         # ----- replaced with list.pop() -------- removed net.iperf( (h1, h4) )  ---- replacesd with host.cmd()
         print "Performing Iperf test between", h1, h1.IP(), "(c) and ", h2, h2.IP(), "(s)"
         h2.cmd('%s -s &' % test)  # running iperf server in the background (&)
-        global throughput  # Since value being changed
+        global throughput, dropped, blocked  # Since value being changed
         if throughput == 0:
             throughput = int(h2.name[1:]) * int(h1.name[1:]) / 10000
-
-        coefficient = read_coeff()
-        fcoeff = coefficient
-        if (skipcoeff == 1) | (random() < coefficient):		#Condition to generatte new flow
+        if (skipcoeff == 1) | (random() < read_coeff()):		#Condition to generatte new flow
             bwfile = '%s-%s.%s.dat' % (h1, h2, test)
             h1.cmd('ping %s &' % h2.IP())						#Learn path and wait for response to reach
             time.sleep(10)
@@ -160,36 +156,27 @@ class DataTraffic:
                 bwline = bwfile.readlines()
                 coefficient = read_coeff()
                 if len(bwline) == 0:
-                    global dropped
-                    dropped = +1
-                    fcoeff = 1 * coefficient
+                    dropped += 1
                 else:
                     line = bwline[len(bwline) - 1]
-                    pad = 0
-                    if len(re.split('\s+', line)) == 11:
-                        pad = 1
-                    bw = float(re.split('\s+', line)[7 + pad])
-                    bwUnit = re.split('\s+', line)[8 + pad]
+                    '''pad = 1 if len(line.split(' ')) == 11 else 0
+                    print line.split(' '),pad
+                    '''
+                    bw = float(line.split(' ')[9])
+                    bwUnit = line.split(' ')[10]
                     mx = {'G': 1000000000, 'M': 1000000, 'K': 1000}
                     multiplier = mx.get(bwUnit[0], 1)
-                    delfile = ('%s-%s.ping.txt' % (h1, h2))
+                    delfile = '%s-%s.ping.txt' % (h1, h2)
                     delline = read_last_line(delfile)
-                    delay = float(re.split('/+', delline)[4])
-                    print bw * multiplier, delay 
+                    delay = float(delline.split(' ')[4])
                     if (bw * multiplier > slaBW) & (delay < slaDel):
-                        fcoeff = 1.1 * coefficient
-                        if fcoeff > 1:
-                            fcoeff = 1
-                    else:
-                        fcoeff = 0.9 * coefficient
-        # print bw
+                        coefficient *= 1.1
+                        if coefficient > 1: coefficient = 1
+                    else: coefficient *= 0.9
 
-        else:
-            global blocked
-            blocked = blocked + 1
+        else: blocked += 1; coefficient=read_coeff()
 
-        # h1.cmd('echo %s >>coefficients-%s-%s.txt' % (fcoeff, sys.argv[2], sys.argv[3]))
-        append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), fcoeff)
+        append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
         # h2.sendInt()
         hosts.append(h1)
         hosts.append(h2)
