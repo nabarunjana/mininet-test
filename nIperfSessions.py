@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
-'''
-	File name: nIperfSessions.py
-	Author: Nabarun Jana
-	Date created: 9/12/2017
-	Date last modified: 09/15/2018
-	Python Version: 2.7
-'''
+"""
+    File name: nIperfSessions.py
+    Author: Nabarun Jana
+    Date created: 9/12/2017
+    Date last modified: 09/15/2018
+    Python Version: 2.7
+"""
 
 from mininet.cli import CLI
 from mininet.clean import cleanup
@@ -16,7 +16,7 @@ from mininet.node import RemoteController, OVSKernelSwitch
 from mininet.link import TCLink
 from mininet.util import irange, dumpNodeConnections
 from mininet.log import setLogLevel
-import sys, threading, time, os, subprocess, signal, re, numpy, Properties, pyodbc
+import sys, threading, time, os, subprocess, re, Properties, pyodbc
 from random import *
 
 numNetworks = 2
@@ -26,8 +26,8 @@ differentSubnets = 0  # false = 0
 interval = 2  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
-test_with_data=1
-monitoring=1
+test_with_data = 1
+monitoring = 1
 mesh = 1  # 1 = Mesh network
 secondRun = 0
 switchLevels = 10  # 5
@@ -43,12 +43,13 @@ bandwidth = 64  # MBits/sec
 session = sys.argv[2] + "x" + sys.argv[3]
 controllerIP = '127.0.0.1'
 
-if CLIon==1:
+if CLIon == 1:
     test_with_data = 0
     monitoring = 0
 
+
 class MyTopo(Topo):
-    "Tree topology of k switches, with num_sws host per switch."
+    """Tree topology of k switches, with num_sws host per switch."""
 
     def __init__(self, num_sws=2, **opts):
 
@@ -59,8 +60,7 @@ class MyTopo(Topo):
         routers = []
         for netNum in irange(1, numNetworks):
             central_switch = self.addSwitch('s%s0' % netNum, cls=OVSKernelSwitch)
-            if differentSubnets == 0: rtr_ip_add = '10.0.0.%s' % (255 - netNum)
-            else:  rtr_ip_add = '10.0.%s.254' % netNum
+            rtr_ip_add = '10.0.0.%s' % (255 - netNum) if differentSubnets == 0 else '10.0.%s.254' % netNum
             central_router = self.addSwitch('r%s0' % netNum, cls=OVSKernelSwitch, ip=rtr_ip_add)
             dig = get_digits(num_sws * hostPerSw)
             for sw_num in range(num_sws):
@@ -70,7 +70,7 @@ class MyTopo(Topo):
                     dev_num = hostPerSw * sw_num + host_num
                     ip_add = "10.0.%s.%s" % ((netNum - 1), dev_num)
                     ip_add += "/16" if differentSubnets == 0 else "/24"
-                    host = self.addHost('h%s%s' %(netNum,dev_num), ip=ip_add, defaultRoute="via "+rtr_ip_add)
+                    host = self.addHost('h%s%s' % (netNum, pad(dev_num,dig)), ip=ip_add, defaultRoute="via "+rtr_ip_add)
                     self.addLink(host, switch, bw=bandwidth)
 
             self.addLink(central_switch, central_router, bw=bandwidth)
@@ -94,16 +94,16 @@ def pad(num, dig):
 
 
 def get_digits(num):
-    dig=0
-    while num > 1:
-        num/=10
-        dig+=1
+    dig = 0
+    while num > 0:
+        num /= 10
+        dig += 1
     return dig
 
 
 def read_last_line(filename):
-    readFile = open(filename, 'r')
-    lines = readFile.readlines()
+    read_file = open(filename, 'r')
+    lines = read_file.readlines()
     return lines[len(lines) - 1]
 
 
@@ -118,7 +118,7 @@ class DataTraffic:
     def __init__(self):
         pass
 
-    def performIperf(self, net, i):
+    def perform_iperf(self, net, i):
         # Popping out 2 hosts, one for client the other as server
         hosts = net.hosts
         if selectRandomHosts == 1:
@@ -129,12 +129,12 @@ class DataTraffic:
             h1, h2 = net.get('h%s%s' % (1, 2 * i - 1)), net.get(
                 'h%s%s' % (1, 2 * i))  # hosts.pop(0),hosts.pop(0) #len(hosts)/2)
         elif selectRandomHosts == 2:
-            h1, h2 = hosts.pop(randrange(0,len(hosts)/2-1)), hosts.pop(randrange(len(hosts) / 2 + 1, len(hosts)))
+            h1, h2 = hosts.pop(randrange(0, len(hosts)/2-1)), hosts.pop(randrange(len(hosts) / 2 + 1, len(hosts)))
         else:  # selecting corresponding hosts from the 1st and last then sequential 2nd and 2nd last subnet and so on
-            maxHosts = hostPerSw * switchLevels
-            nextSubnet = int(i / maxHosts)
-            h1, h2 = net.get('h%s%s' % (1 + nextSubnet, i % maxHosts + 1)), net.get(
-                'h%s%s' % (numNetworks - nextSubnet, i % maxHosts + 1))
+            max_hosts = hostPerSw * switchLevels
+            next_subnet = int(i / max_hosts)
+            h1, h2 = net.get('h%s%s' % (1 + next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts)))), net.get(
+                'h%s%s' % (numNetworks - next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts))))
         # -------- removed 'h%s' %(i+1), 'h%s' %(i+7)) #'h%s' %(round(random()*15)), 'h%s' %(round(random()*15)) )
         # ----- replaced with list.pop() -------- removed net.iperf( (h1, h4) )  ---- replacesd with host.cmd()
         print "Performing Iperf test between", h1, h1.IP(), "(c) and ", h2, h2.IP(), "(s)"
@@ -142,47 +142,47 @@ class DataTraffic:
         global throughput, dropped, blocked  # Since value being changed
         if throughput == 0:
             throughput = int(h2.name[1:]) * int(h1.name[1:]) / 10000
-        if (skipcoeff == 1) | (random() < read_coeff()):		#Condition to generatte new flow
-            bwfile = '%s-%s.%s.dat' % (h1, h2, test)
-            h1.cmd('ping %s &' % h2.IP())						#Learn path and wait for response to reach
+        if (skipcoeff == 1) | (random() < read_coeff()):		# Condition to generatte new flow
+            bw_file = '%s-%s.%s.dat' % (h1, h2, test)
+            h1.cmd('ping %s &' % h2.IP())						# Learn path and wait for response to reach
             time.sleep(10)
             h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' % (
                 h2.IP(), interval / 2, duration, "%H:%M:%S", h1, h2))
             h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat' % (
                 test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",
-                bwfile))  # running iperf client in background until complete (&&)
+                bw_file))  # running iperf client in background until complete (&&)
             if secondRun == 0:
-                bwfile = open(bwfile, 'r')
-                bwline = bwfile.readlines()
+                bw_file = open(bw_file, 'r')
+                bw_line = bw_file.readlines()
                 coefficient = read_coeff()
-                if len(bwline) == 0:
+                if len(bw_line) == 0:
                     dropped += 1
                 else:
-                    line = bwline[len(bwline) - 1]
-                    '''pad = 1 if len(line.split(' ')) == 11 else 0
-                    print line.split(' '),pad
-                    '''
-                    bw = float(line.split(' ')[9])
-                    bwUnit = line.split(' ')[10]
+                    line = bw_line[len(bw_line) - 1].replace('  ', ' ')
+                    pad_num_chars = 1 if len(line.split(' ')) == 10 else 0
+                    bw = float(line.split(' ')[7+pad_num_chars])
+                    bw_unit = line.split(' ')[8+pad_num_chars]
                     mx = {'G': 1000000000, 'M': 1000000, 'K': 1000}
-                    multiplier = mx.get(bwUnit[0], 1)
-                    delfile = '%s-%s.ping.txt' % (h1, h2)
-                    delline = read_last_line(delfile)
-                    delay = float(delline.split(' ')[4])
+                    multiplier = mx.get(bw_unit[0], 1)
+                    del_file = '%s-%s.ping.txt' % (h1, h2)
+                    del_line = read_last_line(del_file)
+                    delay = float(del_line.replace(' +', ' ').split(' ')[4].split("/")[1])
                     if (bw * multiplier > slaBW) & (delay < slaDel):
                         coefficient *= 1.1
-                        if coefficient > 1: coefficient = 1
-                    else: coefficient *= 0.9
+                        if coefficient > 1:
+                            coefficient = 1
+                    else:
+                        coefficient *= 0.9
 
-        else: blocked += 1; coefficient=read_coeff()
+        else:
+            blocked += 1
+            coefficient = read_coeff()
 
         append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
         # h2.sendInt()
         hosts.append(h1)
         hosts.append(h2)
 
-
-# -------- temp tried -- &&' %(test,h2.IP(),duration,"date +**%H:%M:%S"))#
 
 def print_file(filename, val):
     wrfile = open(filename, 'w')
@@ -214,37 +214,37 @@ def get_coeff():
     return float(re.sub("[^0-9.]", "", row))
 
 
-def simpleTest():
-    "Create and test a simple network"
+def simple_test():
+    """Create and test a simple network"""
     topo = MyTopo(num_sws=switchLevels)
     net = Mininet(topo, link=TCLink, switch=OVSKernelSwitch, autoSetMacs=True, autoStaticArp=False,
                   controller=lambda name: RemoteController(name, ip=controllerIP, port=6633))
     net.start()
 
-    if monitoring==1:
+    if monitoring == 1:
         # --- Monitoring
         os.popen('ip link show > ports.txt')
-        #'''
-        snmpDevProc = subprocess.Popen(
-            'while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost 1.3.6.1.2.1.25.2.3.1.6.1; snmpwalk -v 1 -c public -O e '
-            'localhost 1.3.6.1.2.1.25.3.3.1.2; done>> DevStats.txt 2>> err.txt &' % (
-                interval, dateCmd), shell=True)
+        # '''
+        snmp_dev_proc = subprocess.Popen(
+            'while sleep %s; do %s; snmpwalk -v 1 -c public -O e localhost 1.3.6.1.2.1.25.2.3.1.6.1;'
+            ' snmpwalk -v 1 -c public -O e localhost 1.3.6.1.2.1.25.3.3.1.2; done>> DevStats.txt 2>> err.txt &'
+            % (interval, dateCmd), shell=True)
 
         c0 = net.get('c0')
         c0.cmd('snmpd -Lsd -Lf /dev/null -u snmp -I -smux -p /var/run/snmpd.pid -c /etc/snmp/snmpd.conf')
-        snmpConProc = c0.cmd(
-            'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.25.2.3.1.6.1; snmpwalk -v 1 -c public -O e '
-            '%s 1.3.6.1.2.1.25.3.3.1.2; done>> ControllerStats.txt 2>> err.txt &' % (
-                interval, dateCmd, controllerIP,controllerIP))
+        snmp_con_proc = c0.cmd(
+            'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.25.2.3.1.6.1;'
+            ' snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.25.3.3.1.2; done>> ControllerStats.txt 2>> err.txt &'
+            % (interval, dateCmd, controllerIP, controllerIP))
 
         for r in irange(1, numNetworks):
             router = net.get('r%s0' % r)
             router.cmd('snmpd -Lsd -Lf /dev/null -u snmp -I -smux -p /var/run/snmpd.pid -c /etc/snmp/snmpd.conf')
             router.cmd(
-                'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.2.2.1.16; done>> Router%sIfOutStats.txt 2>> '
-                'err.txt &' % (
-                    interval, dateCmd, router.IP(), r))  # .1.3.6.1.2.1.2.2.1.16
-        #'''
+                'while sleep %s; do %s; snmpwalk -v 1 -c public -O e %s 1.3.6.1.2.1.2.2.1.16; '
+                'done>> Router%sIfOutStats.txt 2>> err.txt &' % (
+                     interval, dateCmd, router.IP(), r))  # .1.3.6.1.2.1.2.2.1.16
+        # '''
 
     # net.staticArp()
     print "Dumping host connections"
@@ -255,35 +255,31 @@ def simpleTest():
 
     # os.system('echo \"1\">>coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]))
     if secondRun == 0:
-        fcoeff = 1
+        coefficient = 1
     else:
-        fcoeff = get_coeff()
-    append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), fcoeff)
-    startTime = time.time()
+        coefficient = get_coeff()
+    append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
+    start_time = time.time()
     # ------- removed net.pingAll()   ----- replaced with net.staticArp()
     # ------- removed    CLI( net )
     n = int(sys.argv[1])  # getting number of IPerf tests from command line
 
-
-    # net.get('h11').cmd('while sleep %s; do %s;ping -c 1 10.0.0.16|grep avg ; done >> h1ping2.txt 2>> err.txt &' %(
-    # interval/2,dateCmd))
-
     ''' ---- Removed 02-01-2018 ---- Invalid after hosts.append()
-     hpairs = len(net.hosts)/2
-     if n > hpairs:
-          print "Number of IPerf tests exceeds host pairs. Reducings tests from %s to %s"  %(n,hpairs)
-          n = hpairs
-     else:
-          print "Number of IPerf tests %s" %n
-     '''
+    hpairs = len(net.hosts)/2
+    if n > hpairs:
+        print "Number of IPerf tests exceeds host pairs. Reducings tests from %s to %s"  %(n,hpairs)
+        n = hpairs
+    else:
+        print "Number of IPerf tests %s" %n
+    '''
 
-    if test_with_data==1:
+    if test_with_data == 1:
         threads = []
         t = {}
         # Creating n threads, one for each iperf session
         for i in range(int(n)):
             dt = DataTraffic()
-            t[i] = threading.Thread(target=DataTraffic.performIperf, args=(dt,net, i))
+            t[i] = threading.Thread(target=DataTraffic.perform_iperf, args=(dt, net, i))
             t[i].daemon = True
             t[i].start()
             threads.append(t[i])
@@ -299,25 +295,25 @@ def simpleTest():
             router = net.get('r%s0' % r)
             router.sendInt()
     net.stop()
-    if monitoring==1:
-        snmpDevProc.kill()
-    # os.kill(int(snmpConProc.split()[1]), signal.CTRL_C_EVENT)
+    if monitoring == 1:
+        snmp_dev_proc.kill()
+    # os.kill(int(snmp_con_proc.split()[1]), signal.CTRL_C_EVENT)
 
-    stopTime = time.time()
+    stop_time = time.time()
     print_file('blocked.txt', blocked)
     print_file('dropped.txt', dropped)
-    print(stopTime - startTime)
+    print(stop_time - start_time)
     print os.system('%s >> log.txt; echo %s >> log.txt' % (
-        dateCmd, stopTime - startTime))  # dummy command to print  seconds of the clock
+          dateCmd, stop_time - start_time))  # dummy command to print  seconds of the clock
 
 
 if __name__ == '__main__':
     # Tell mininet to print useful information
-    setLogLevel('info')
+    setLogLevel('output')
     try:
-        simpleTest()
+        simple_test()
     except:
         cleanup()
-        simpleTest()
+        simple_test()
 
 topos = {'mytopo': (lambda: MyTopo())}
