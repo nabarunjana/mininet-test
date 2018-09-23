@@ -21,18 +21,18 @@ from random import *
 
 numNetworks = 2
 hostPerSw = 16  # 8
-selectRandomHosts = 0  # true = 1
-differentSubnets = 0  # false = 0
+select_rand_hosts = 0  # true = 1
+different_subnets = 0  # false = 0
 interval = 2  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
 mesh = 1  # 1 = Mesh network
-secondRun = 0
+no_time_run = 2
 switchLevels = 10  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
-skipcoeff = 0
+skip_coeff = 0
 blocked = 0
 dropped = 0
 test = 'iperf'
@@ -60,7 +60,7 @@ class MyTopo(Topo):
         routers = []
         for netNum in irange(1, numNetworks):
             central_switch = self.addSwitch('s%s0' % netNum, cls=OVSKernelSwitch)
-            rtr_ip_add = '10.0.0.%s' % (255 - netNum) if differentSubnets == 0 else '10.0.%s.254' % netNum
+            rtr_ip_add = '10.0.0.%s' % (255 - netNum) if different_subnets == 0 else '10.0.%s.254' % netNum
             central_router = self.addSwitch('r%s0' % netNum, cls=OVSKernelSwitch, ip=rtr_ip_add)
             dig = get_digits(num_sws * hostPerSw)
             for sw_num in range(num_sws):
@@ -69,7 +69,7 @@ class MyTopo(Topo):
                 for host_num in irange(1, hostPerSw):
                     dev_num = hostPerSw * sw_num + host_num
                     ip_add = "10.0.%s.%s" % ((netNum - 1), dev_num)
-                    ip_add += "/16" if differentSubnets == 0 else "/24"
+                    ip_add += "/16" if different_subnets == 0 else "/24"
                     host = self.addHost('h%s%s' % (netNum, pad(dev_num,dig)), ip=ip_add, defaultRoute="via "+rtr_ip_add)
                     self.addLink(host, switch, bw=bandwidth)
 
@@ -121,14 +121,14 @@ class DataTraffic:
     def perform_iperf(self, net, i):
         # Popping out 2 hosts, one for client the other as server
         hosts = net.hosts
-        if selectRandomHosts == 1:
+        if select_rand_hosts == 1:
             h1, h2 = hosts.pop(int(random() * len(hosts))), hosts.pop(
                 int(random() * len(hosts)))  # ---- selecting hosts at random
         elif numNetworks == 1:
             i += 1
             h1, h2 = net.get('h%s%s' % (1, 2 * i - 1)), net.get(
                 'h%s%s' % (1, 2 * i))  # hosts.pop(0),hosts.pop(0) #len(hosts)/2)
-        elif selectRandomHosts == 2:
+        elif select_rand_hosts == 2:
             h1, h2 = hosts.pop(randrange(0, len(hosts)/2-1)), hosts.pop(randrange(len(hosts) / 2 + 1, len(hosts)))
         else:  # selecting corresponding hosts from the 1st and last then sequential 2nd and 2nd last subnet and so on
             max_hosts = hostPerSw * switchLevels
@@ -142,7 +142,7 @@ class DataTraffic:
         global throughput, dropped, blocked  # Since value being changed
         if throughput == 0:
             throughput = int(h2.name[1:]) * int(h1.name[1:]) / 10000
-        if (skipcoeff == 1) | (random() < read_coeff()):		# Condition to generatte new flow
+        if (skip_coeff == 1) | (random() < read_coeff()):		# Condition to generatte new flow
             bw_file = '%s-%s.%s.dat' % (h1, h2, test)
             h1.cmd('ping %s &' % h2.IP())						# Learn path and wait for response to reach
             time.sleep(10)
@@ -151,10 +151,10 @@ class DataTraffic:
             h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat' % (
                 test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",
                 bw_file))  # running iperf client in background until complete (&&)
-            if secondRun == 0:
+            coefficient = read_coeff()
+            if no_time_run >= 1:
                 bw_file = open(bw_file, 'r')
                 bw_line = bw_file.readlines()
-                coefficient = read_coeff()
                 if len(bw_line) == 0:
                     dropped += 1
                 else:
@@ -205,7 +205,7 @@ def get_coeff():
     cursor = conn.cursor()
     cursor.execute(
         "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
-        "'SW%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
+        "'MFixedPairs1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
             '%200%', slaBW, slaDel, bandwidth, session))
     row = str(cursor.fetchone()).strip('(, )')
     if row == "None":
@@ -254,10 +254,10 @@ def simple_test():
         CLI(net)
 
     # os.system('echo \"1\">>coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]))
-    if secondRun == 0:
-        coefficient = 1
-    else:
+    if no_time_run == 2:
         coefficient = get_coeff()
+    else:
+        coefficient = 1
     append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
     start_time = time.time()
     # ------- removed net.pingAll()   ----- replaced with net.staticArp()

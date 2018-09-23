@@ -3,7 +3,7 @@
 ./initiateSession.ksh 8 16
 ./initiateSession.ksh 8 32
 ./initiateSession.ksh 4 32
-toUse="'MFixedPairs100x2'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
+toUse="'MFixedPairs2x2'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
 skip=`grep 'skipcoeff' nIperfSessions.py |head -1 | cut -d '=' -f2`
 if [ $skip == 1 ]; then slaDel=0; slaBW=0; else
 slaDel=` grep 'slaDel' nIperfSessions.py |head -1 | cut -d '=' -f2`
@@ -20,7 +20,7 @@ mv sessionmap.txt 'sessionmap'$toUse'.txt'
 ./initiateSession.ksh 8 16
 ./initiateSession.ksh 8 32
 ./initiateSession.ksh 4 32
-toUse="'MFixedPairs100x3'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
+toUse="'MFixedPairs2x3'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
 skip=`grep 'skipcoeff' nIperfSessions.py |head -1 | cut -d '=' -f2`
 if [ $skip == 1 ]; then slaDel=0; slaBW=0; else
 slaDel=` grep 'slaDel' nIperfSessions.py |head -1 | cut -d '=' -f2`
