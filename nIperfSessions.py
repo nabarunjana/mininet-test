@@ -104,6 +104,7 @@ def get_digits(num):
 def read_last_line(filename):
     read_file = open(filename, 'r')
     lines = read_file.readlines()
+    read_file.close()
     return lines[len(lines) - 1]
 
 
@@ -211,6 +212,7 @@ def get_coeff():
     if row == "None":
         row = "1"
     print(row)
+    conn.close()
     return float(re.sub("[^0-9.]", "", row))
 
 
