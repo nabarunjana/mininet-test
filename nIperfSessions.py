@@ -29,7 +29,7 @@ CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
 mesh = 1  # 1 = Mesh network
-no_time_run = 2
+no_time_run = 1
 switchLevels = 10  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skip_coeff = 0
@@ -153,7 +153,7 @@ class DataTraffic:
                 test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",
                 bw_file))  # running iperf client in background until complete (&&)
             coefficient = read_coeff()
-            if no_time_run >= 1:
+            if no_time_run == 1:
                 bw_file = open(bw_file, 'r')
                 bw_line = bw_file.readlines()
                 if len(bw_line) == 0:
@@ -310,8 +310,9 @@ def simple_test():
 
 
 if __name__ == '__main__':
-    # Tell mininet to print useful information
+    # Tell mininet to print only output
     setLogLevel('output')
+    open('dbcon.properties', 'r')
     try:
         simple_test()
     except:
