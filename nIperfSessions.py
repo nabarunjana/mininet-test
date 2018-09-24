@@ -21,7 +21,7 @@ from random import *
 
 numNetworks = 2
 hostPerSw = 16  # 8
-select_rand_hosts = 0  # true = 1
+select_rand_hosts = 2  # true = 1
 different_subnets = 0  # false = 0
 interval = 2  # seconds
 duration = int(sys.argv[2])  # 20 seconds
