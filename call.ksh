@@ -15,5 +15,3 @@ cat sessionmap.txt|while read line; do
 	java -jar monitoring.jar insert sessionMap $b $s $toUse $c $slaDel $slaBW $bandwidth;
 done
 mv sessionmap.txt 'sessionmap'$toUse'.txt'
-
-./initiateSe
