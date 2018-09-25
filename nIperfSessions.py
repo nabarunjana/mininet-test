@@ -29,7 +29,7 @@ CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
 mesh = 1  # 1 = Mesh network
-no_time_run = 1
+no_time_run = 2
 switchLevels = 10  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skip_coeff = 0
@@ -206,8 +206,8 @@ def get_coeff():
     cursor = conn.cursor()
     cursor.execute(
         "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
-        "'MFixedPairs1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
-            '%200%', slaBW, slaDel, bandwidth, session))
+        "'SRandPairs1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
+            '%1000%', slaBW, slaDel, bandwidth, session))
     row = str(cursor.fetchone()).strip('(, )')
     if row == "None":
         row = "1"
