@@ -28,8 +28,9 @@ duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
+check_sla=0
 mesh = 1  # 1 = Mesh network
-no_time_run = 2
+no_time_run = int(sys.argv[4]) #0, 1, or 2
 switchLevels = 10  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skip_coeff = 0
@@ -158,7 +159,8 @@ class DataTraffic:
                 bw_line = bw_file.readlines()
                 if len(bw_line) == 0:
                     dropped += 1
-                else:
+                    coefficient *= 0.9
+                elif check_sla==1:
                     line = bw_line[len(bw_line) - 1].replace('  ', ' ')
                     pad_num_chars = 1 if len(line.split(' ')) == 10 else 0
                     bw = float(line.split(' ')[7+pad_num_chars])
