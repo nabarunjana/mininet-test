@@ -28,7 +28,7 @@ duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
-check_sla=0
+check_sla=1
 mesh = 1  # 1 = Mesh network
 no_time_run = int(sys.argv[4]) #0, 1, or 2
 switchLevels = 10  # 5
