@@ -28,7 +28,7 @@ duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
-check_sla=1
+check_sla=0
 mesh = 1  # 1 = Mesh network
 no_time_run = int(sys.argv[4]) #0, 1, or 2
 switchLevels = 10  # 5
@@ -207,8 +207,8 @@ def get_coeff():
                           database=p.getProperty("database"))
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT avg(coeff) FROM vCoefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
-        "'SRandPairs1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
+        "SELECT avg(coeff) FROM Coefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
+        "'DSRandPairs1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
             '%1000%', slaBW, slaDel, bandwidth, session))
     row = str(cursor.fetchone()).strip('(, )')
     if row == "None":
