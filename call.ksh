@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-./initiateSession.ksh 16 16 1
-./initiateSession.ksh 8 16 1
+./initiateSession.ksh 16 32 1
 ./initiateSession.ksh 8 32 1
-./initiateSession.ksh 4 32 1
-toUse="'SDSRandPairs1x1000'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
+./initiateSession.ksh 8 64 1
+./initiateSession.ksh 16 64 1
+toUse="'SRandPairs1x1000'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
 skip=`grep 'skipcoeff' nIperfSessions.py |head -1 | cut -d '=' -f2`
 if [ $skip == 1 ]; then slaDel=0; slaBW=0; else
 slaDel=` grep 'slaDel' nIperfSessions.py |head -1 | cut -d '=' -f2`
@@ -17,11 +17,11 @@ cat sessionmap.txt|while read line; do
 done
 mv sessionmap.txt 'sessionmap'$toUse'.txt'
 
-./initiateSession.ksh 16 16 2
-./initiateSession.ksh 8 16 2
+./initiateSession.ksh 16 32 2
 ./initiateSession.ksh 8 32 2
-./initiateSession.ksh 4 32 2
-toUse="'SDSRandPairs2x1000'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
+./initiateSession.ksh 8 64 2
+./initiateSession.ksh 16 64 2
+toUse="'SRandPairs2x1000'" #`date +%d%m%y` #"'2SW10sL64C100x1'" #
 skip=`grep 'skipcoeff' nIperfSessions.py |head -1 | cut -d '=' -f2`
 if [ $skip == 1 ]; then slaDel=0; slaBW=0; else
 slaDel=` grep 'slaDel' nIperfSessions.py |head -1 | cut -d '=' -f2`

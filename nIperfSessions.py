@@ -20,7 +20,8 @@ import sys, threading, time, os, subprocess, re, Properties, pyodbc
 from random import *
 
 numNetworks = 2
-hostPerSw = 16  # 8
+hostPerSw = 16  # 16
+switches_per_router = 10  # 5
 select_rand_hosts = 2  # true = 1
 different_subnets = 0  # false = 0
 interval = 2  # seconds
@@ -29,9 +30,9 @@ CLIon = 0  # 0 = Off (No CLI)
 test_with_data = 1
 monitoring = 1
 check_sla=1
+check_drops=1
 mesh = 1  # 1 = Mesh network
 no_time_run = int(sys.argv[4]) #0, 1, or 2
-switchLevels = 10  # 5
 throughput = int(sys.argv[3])  # 8 Mbps
 skip_coeff = 0
 blocked = 0
@@ -133,7 +134,7 @@ class DataTraffic:
         elif select_rand_hosts == 2:
             h1, h2 = hosts.pop(randrange(0, len(hosts)/2-1)), hosts.pop(randrange(len(hosts) / 2 + 1, len(hosts)))
         else:  # selecting corresponding hosts from the 1st and last then sequential 2nd and 2nd last subnet and so on
-            max_hosts = hostPerSw * switchLevels
+            max_hosts = hostPerSw * switches_per_router
             next_subnet = int(i / max_hosts)
             h1, h2 = net.get('h%s%s' % (1 + next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts)))), net.get(
                 'h%s%s' % (numNetworks - next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts))))
@@ -142,23 +143,26 @@ class DataTraffic:
         print "Performing Iperf test between", h1, h1.IP(), "(c) and ", h2, h2.IP(), "(s)"
         h2.cmd('%s -s &' % test)  # running iperf server in the background (&)
         global throughput, dropped, blocked  # Since value being changed
-        if throughput == 0:
+        if throughput == 0:         # Setting target throughput if not defined
             throughput = int(h2.name[1:]) * int(h1.name[1:]) / 10000
         if (skip_coeff == 1) | (random() < read_coeff()):		# Condition to generatte new flow
             bw_file = '%s-%s.%s.dat' % (h1, h2, test)
             h1.cmd('ping %s &' % h2.IP())						# Learn path and wait for response to reach
             time.sleep(10)
             h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' % (
-                h2.IP(), interval / 2, duration, "%H:%M:%S", h1, h2))
+                h2.IP(), interval / 2, duration, "%H:%M:%S", h1, h2))  #Make h1 as iperf server
             h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat' % (
                 test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",
                 bw_file))  # running iperf client in background until complete (&&)
             coefficient = read_coeff()
+            bw_file = open(bw_file, 'r')
+            bw_line = bw_file.readlines()
+            if len(bw_line) == 0:
+                dropped += 1
+                print("Dropped")
             if no_time_run == 1:
-                bw_file = open(bw_file, 'r')
-                bw_line = bw_file.readlines()
-                if len(bw_line) == 0:
-                    dropped += 1
+                if check_drops==1 & len(bw_line) == 0:
+                    ##dropped += 1
                     coefficient *= 0.9
                 elif check_sla==1:
                     line = bw_line[len(bw_line) - 1].replace('  ', ' ')
@@ -176,10 +180,11 @@ class DataTraffic:
                             coefficient = 1
                     else:
                         coefficient *= 0.9
-
         else:
             blocked += 1
-            coefficient = read_coeff()
+            coefficient = 1.1*read_coeff()
+            if coefficient > 1:
+                coefficient = 1
 
         append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
         # h2.sendInt()
@@ -220,7 +225,7 @@ def get_coeff():
 
 def simple_test():
     """Create and test a simple network"""
-    topo = MyTopo(num_sws=switchLevels)
+    topo = MyTopo(num_sws=switches_per_router)
     net = Mininet(topo, link=TCLink, switch=OVSKernelSwitch, autoSetMacs=True, autoStaticArp=False,
                   controller=lambda name: RemoteController(name, ip=controllerIP, port=6633))
     net.start()
