@@ -27,7 +27,7 @@ different_subnets = 0  # false = 0
 interval = 2  # seconds
 duration = int(sys.argv[2])  # 20 seconds
 CLIon = 0  # 0 = Off (No CLI)
-test_with_data = 1
+test_with_data = 1      #auto modifies yest_with_data and check_sla
 monitoring = 1
 check_sla=1
 check_drops=1
@@ -176,16 +176,16 @@ class DataTraffic:
                     delay = float(del_line.replace(' +', ' ').split(' ')[4].split("/")[1])
                     if (bw * multiplier > slaBW) & (delay < slaDel):
                         coefficient *= 1.1
-                        if coefficient > 1:
-                            coefficient = 1
                     else:
                         coefficient *= 0.9
         else:
             blocked += 1
             coefficient = 1.1*read_coeff()
-            if coefficient > 1:
-                coefficient = 1
 
+        if coefficient > 1:
+            coefficient = 1
+        elif coefficient < 0.1:
+            coefficient = 0.1
         append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
         # h2.sendInt()
         hosts.append(h1)
