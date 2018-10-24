@@ -180,7 +180,6 @@ class DataTraffic:
                         coefficient *= 0.9
         else:
             blocked += 1
-            coefficient = 1.1*read_coeff()
 
         if coefficient > 1:
             coefficient = 1
@@ -188,7 +187,7 @@ class DataTraffic:
             coefficient = 0.1
         append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
         # h2.sendInt()
-        hosts.append(h1)
+        hosts.insert(0,h1)
         hosts.append(h2)
 
 
@@ -213,7 +212,7 @@ def get_coeff():
     cursor = conn.cursor()
     cursor.execute(
         "SELECT avg(coeff) FROM Coefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
-        "'SDSRandPairs1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
+        "'Maintain1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
             '%1000%', slaBW, slaDel, bandwidth, session))
     row = str(cursor.fetchone()).strip('(, )')
     if row == "None":
