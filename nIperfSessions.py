@@ -130,9 +130,7 @@ class DataTraffic:
             h1, h2 = hosts.pop(int(random() * len(hosts))), hosts.pop(
                 int(random() * len(hosts)))  # ---- selecting hosts at random
         elif numNetworks == 1:
-            i += 1
-            h1, h2 = net.get('h%s%s' % (1, 2 * i - 1)), net.get(
-                'h%s%s' % (1, 2 * i))  # hosts.pop(0),hosts.pop(0) #len(hosts)/2)
+            h1, h2 = hosts.pop(0),hosts.pop(len(hosts)-1)
         elif select_rand_hosts == 2:
             h1, h2 = hosts.pop(randrange(0, len(hosts)/2-1)), hosts.pop(randrange(len(hosts) / 2 + 1, len(hosts)))
         else:  # selecting corresponding hosts from the 1st and last then sequential 2nd and 2nd last subnet and so on
@@ -140,8 +138,7 @@ class DataTraffic:
             next_subnet = int(i / max_hosts)
             h1, h2 = net.get('h%s%s' % (1 + next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts)))), net.get(
                 'h%s%s' % (numNetworks - next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts))))
-        # -------- removed 'h%s' %(i+1), 'h%s' %(i+7)) #'h%s' %(round(random()*15)), 'h%s' %(round(random()*15)) )
-        # ----- replaced with list.pop() -------- removed net.iperf( (h1, h4) )  ---- replaced with host.cmd()
+        # -----  removed net.iperf( (h1, h4) )  ---- replaced with host.cmd()
         print "Performing Iperf test between", h1, h1.IP(), "(c) and ", h2, h2.IP(), "(s)"
         h2.cmd('%s -s &' % test)  # running iperf server in the background (&)
         global throughput, dropped, blocked  # Since value being changed
@@ -299,12 +296,12 @@ def simple_test():
         for i in range(int(n)):
             t[i].join()
 
-        c0.sendInt()
         for r in irange(1, numNetworks):
             router = net.get('r%s0' % r)
             router.sendInt()
     net.stop()
     if monitoring == 1:
+        c0.sendInt()
         snmp_dev_proc.kill()
     # os.kill(int(snmp_con_proc.split()[1]), signal.CTRL_C_EVENT)
 
@@ -314,7 +311,6 @@ def simple_test():
     print(stop_time - start_time)
     print os.system('%s >> log.txt; echo %s >> log.txt' % (
           dateCmd, stop_time - start_time))  # dummy command to print  seconds of the clock
-
 
 if __name__ == '__main__':
     # Tell mininet to print only output
