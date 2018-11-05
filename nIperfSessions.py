@@ -123,7 +123,7 @@ class DataTraffic:
     def __init__(self):
         pass
 
-    def perform_iperf(self, net, i):
+    def get_perf_metrics(self, net, i):
         # Popping out 2 hosts, one for client the other as server
         hosts = net.hosts
         if select_rand_hosts == 1:
@@ -267,11 +267,8 @@ def simple_test():
     if CLIon == 1:
         CLI(net)
 
-    # os.system('echo \"1\">>coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]))
-    if no_time_run == 2:
-        coefficient = get_coeff()
-    else:
-        coefficient = 1
+    coefficient = get_coeff() if no_time_run == 2 else 1
+
     append_file('coefficients-%s-%s.txt' % (sys.argv[2], sys.argv[3]), coefficient)
     start_time = time.time()
     # ------- removed net.pingAll()   ----- replaced with net.staticArp()
@@ -288,15 +285,13 @@ def simple_test():
     '''
 
     if test_with_data == 1:
-        threads = []
         t = {}
         # Creating n threads, one for each iperf session
         for i in range(int(n)):
             dt = DataTraffic()
-            t[i] = threading.Thread(target=DataTraffic.perform_iperf, args=(dt, net, i))
+            t[i] = threading.Thread(target=DataTraffic.get_perf_metrics, args=(dt, net, i))
             t[i].daemon = True
             t[i].start()
-            threads.append(t[i])
             time.sleep(interval)
         # ----- removed time.sleep(20) ------ replaced with join()
 
