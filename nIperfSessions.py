@@ -21,7 +21,7 @@ from random import *
 
 numNetworks = 2
 hostPerSw = 16  # 16
-switches_per_router = 10  # 5
+switches_per_router = 10  # 10
 select_rand_hosts = 2  # true = 1
 different_subnets = 0  # false = 0
 interval = 2  # seconds
@@ -34,7 +34,7 @@ check_drops=1
 mesh = 1  # 1 = Mesh network
 no_time_run = int(sys.argv[4]) #0, 1, or 2
 throughput = int(sys.argv[3])  # 8 Mbps
-skip_coeff = 0
+skip_coeff = 0      # parameter to let a flow always generate if set to 1, else based on condition
 blocked = 0
 dropped = 0
 test = 'iperf'
@@ -44,6 +44,8 @@ slaBW = 1000000
 bandwidth = 64  # MBits/sec
 session = sys.argv[2] + "x" + sys.argv[3]
 controllerIP = '127.0.0.1'
+
+mx = {'G': 1000000000, 'M': 1000000, 'K': 1000}
 
 if CLIon == 1:
     test_with_data = 0
@@ -139,45 +141,38 @@ class DataTraffic:
             h1, h2 = net.get('h%s%s' % (1 + next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts)))), net.get(
                 'h%s%s' % (numNetworks - next_subnet, pad(i % max_hosts + 1, get_digits(max_hosts))))
         # -------- removed 'h%s' %(i+1), 'h%s' %(i+7)) #'h%s' %(round(random()*15)), 'h%s' %(round(random()*15)) )
-        # ----- replaced with list.pop() -------- removed net.iperf( (h1, h4) )  ---- replacesd with host.cmd()
+        # ----- replaced with list.pop() -------- removed net.iperf( (h1, h4) )  ---- replaced with host.cmd()
         print "Performing Iperf test between", h1, h1.IP(), "(c) and ", h2, h2.IP(), "(s)"
         h2.cmd('%s -s &' % test)  # running iperf server in the background (&)
         global throughput, dropped, blocked  # Since value being changed
+        coefficient=read_coeff()
         if throughput == 0:         # Setting target throughput if not defined
             throughput = int(h2.name[1:]) * int(h1.name[1:]) / 10000
-        if (skip_coeff == 1) | (random() < read_coeff()):		# Condition to generatte new flow
-            bw_file = '%s-%s.%s.dat' % (h1, h2, test)
-            h1.cmd('ping %s &' % h2.IP())						# Learn path and wait for response to reach
+        if (skip_coeff == 1) | (random() < coefficient):		# Condition to generate/block new flow
+            bw_file = '%s-%s.%s.dat' % (h1, h2, test)           # Output file for iperf
+            del_file = '%s-%s.ping.txt' % (h1, h2)              # Output file for ping
+            h1.cmd('ping %s &' % h2.IP())						# Learn path and wait for response
             time.sleep(10)
-            h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s-%s.ping.txt 2>> err.dat &' % (
-                h2.IP(), interval / 2, duration, "%H:%M:%S", h1, h2))  #Make h1 as iperf server
+            h1.cmd('ping %s -i %s -w %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat &' % (
+                h2.IP(), interval / 2, duration, "%H:%M:%S", del_file))  #Make h1 as iperf server
             h1.cmd('%s -c %s -b %sM -i %s -t %s | gawk \'{ print strftime("%s"), $0 }\' >> %s 2>> err.dat' % (
                 test, h2.IP(), throughput, interval / 2, duration, "%H:%M:%S",
                 bw_file))  # running iperf client in background until complete (&&)
-            coefficient = read_coeff()
+            coefficient = read_coeff()                          # getting the value of coefficient after iperf completes
             bw_file = open(bw_file, 'r')
-            bw_line = bw_file.readlines()
+            bw_line = bw_file.readlines()                       # for checking dropped flows
             if len(bw_line) == 0:
                 dropped += 1
-                print("Dropped")
-            if no_time_run == 1:
+            if no_time_run == 1:                                # change value of coefficient in learning phase only
                 if check_drops==1 & len(bw_line) == 0:
-                    ##dropped += 1
                     coefficient *= 0.9
-                elif check_sla==1:
-                    line = bw_line[len(bw_line) - 1].replace('  ', ' ')
-                    pad_num_chars = 1 if len(line.split(' ')) == 10 else 0
-                    bw = float(line.split(' ')[7+pad_num_chars])
-                    bw_unit = line.split(' ')[8+pad_num_chars]
-                    mx = {'G': 1000000000, 'M': 1000000, 'K': 1000}
-                    multiplier = mx.get(bw_unit[0], 1)
-                    del_file = '%s-%s.ping.txt' % (h1, h2)
-                    del_line = read_last_line(del_file)
-                    delay = float(del_line.replace(' +', ' ').split(' ')[4].split("/")[1])
+                elif check_sla==1:                              # change coefficient if sla met/breached
+                    bw,multiplier=get_bw_mux(bw_line)
+                    delay = get_delay(del_file)
                     if (bw * multiplier > slaBW) & (delay < slaDel):
-                        coefficient *= 1.1
+                        coefficient *= 1.1                      # sla met
                     else:
-                        coefficient *= 0.9
+                        coefficient *= 0.9                      # sla breached
         else:
             blocked += 1
 
@@ -190,6 +185,17 @@ class DataTraffic:
         hosts.insert(0,h1)
         hosts.append(h2)
 
+def get_bw_mux(bw_line):
+    line = bw_line[len(bw_line) - 1].replace('  ', ' ')
+    pad_num_chars = 1 if len(line.split(' ')) == 10 else 0
+    bw = float(line.split(' ')[7 + pad_num_chars])
+    bw_unit = line.split(' ')[8 + pad_num_chars]
+    multiplier = mx.get(bw_unit[0], 1)
+    return bw,multiplier
+
+def get_delay(del_file):
+    del_line = read_last_line(del_file)
+    return float(del_line.replace(' +', ' ').split(' ')[4].split("/")[1])
 
 def print_file(filename, val):
     wrfile = open(filename, 'w')
