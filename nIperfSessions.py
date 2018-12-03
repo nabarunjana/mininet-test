@@ -215,7 +215,7 @@ def get_coeff():
     cursor = conn.cursor()
     cursor.execute(
         "SELECT avg(coeff) FROM Coefficients WHERE BATCH_ID in (select BATCH_ID from sessionMap where toUse like "
-        "'Maintain1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
+        "'Extreme1%s' and slaBW=%s and slaDel=%s and bandwidth=%s and session='%s');" % (
             '%1000%', slaBW, slaDel, bandwidth, session))
     row = str(cursor.fetchone()).strip('(, )')
     if row == "None":
